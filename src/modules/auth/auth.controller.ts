@@ -43,12 +43,16 @@ export class AuthController {
     const user = req.user;
     let result;
     if (role === 'user') {
-      // Update user profile
       await this.userService.updateUserProfile(user.userId, otherInfo);
       const updatedUser = await this.userService.findByEmail(user.email);
       result = await this.authService.login({ ...updatedUser, role: 'user' });
     } else if (role === 'doctor') {
-      // Create doctor profile and remove user if needed
+      // Remove user from User table if exists
+      const existingUser = await this.userService.findByEmail(user.email);
+      if (existingUser) {
+        await this.userService.deleteByEmail(user.email);
+      }
+      // Create doctor profile
       let doctor = await this.doctorService.findByEmail(user.email);
       if (!doctor) {
         doctor = await this.doctorService.createFromGoogle({

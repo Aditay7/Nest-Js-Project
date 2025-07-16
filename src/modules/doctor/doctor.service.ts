@@ -17,13 +17,35 @@ export class DoctorService {
   async createFromGoogle({
     email,
     name,
+    specialization = '',
+    years_of_experience = '',
+    phone = '',
+    profile_pic = '',
+    bio = '',
+    gender = '',
     ...rest
   }: {
     email: string;
     name: string;
+    specialization?: string;
+    years_of_experience?: string;
+    phone?: string;
+    profile_pic?: string;
+    bio?: string;
+    gender?: string;
     [key: string]: any;
   }): Promise<Doctor> {
-    const doctor = this.doctorRepository.create({ email, name, ...rest });
+    const doctor = this.doctorRepository.create({
+      email,
+      name,
+      specialization,
+      years_of_experience,
+      phone,
+      profile_pic,
+      bio,
+      gender,
+      ...rest,
+    });
     return this.doctorRepository.save(doctor);
   }
 
