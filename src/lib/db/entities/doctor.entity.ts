@@ -18,6 +18,9 @@ export class Doctor {
   email: string;
 
   @Column()
+  password: string;
+
+  @Column()
   phone: string;
 
   @Column()
@@ -25,4 +28,4 @@ export class Doctor {
 
   @Column()
   bio: string;
-} 
+}
