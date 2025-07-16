@@ -1,10 +1,21 @@
-import { Controller, Post, Body, BadRequestException } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Body,
+  BadRequestException,
+  Get,
+  Param,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 import { DoctorService } from './doctor.service';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Doctor } from 'src/lib/db/entities/doctor.entity';
 import * as bcrypt from 'bcryptjs';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
+@UseGuards(JwtAuthGuard)
 @Controller('doctor')
 export class DoctorController {
   constructor(
@@ -28,5 +39,16 @@ export class DoctorController {
     });
     await this.doctorRepository.save(doctor);
     return { message: 'Doctor registered successfully' };
+  }
+
+  @Get()
+  async getDoctors(@Query('specialization') specialization?: string) {
+    return this.doctorService.findDoctorsBySpecialization(specialization);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get(':id')
+  async getDoctorProfile(@Param('id') id: number) {
+    return this.doctorService.getDoctorProfileWithAvailability(id);
   }
 }

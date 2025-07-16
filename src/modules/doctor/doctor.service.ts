@@ -2,12 +2,15 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Doctor } from 'src/lib/db/entities/doctor.entity';
+import { Availability } from 'src/lib/db/entities/availability.entity';
 
 @Injectable()
 export class DoctorService {
   constructor(
     @InjectRepository(Doctor)
     private readonly doctorRepository: Repository<Doctor>,
+    @InjectRepository(Availability)
+    private readonly availabilityRepository: Repository<Availability>,
   ) {}
 
   async findByEmail(email: string): Promise<Doctor | null> {
@@ -54,5 +57,23 @@ export class DoctorService {
     update: Partial<Doctor>,
   ): Promise<void> {
     await this.doctorRepository.update(doctorId, update);
+  }
+
+  async findDoctorsBySpecialization(
+    specialization?: string,
+  ): Promise<Doctor[]> {
+    if (specialization) {
+      return this.doctorRepository.find({ where: { specialization } });
+    }
+    return this.doctorRepository.find();
+  }
+
+  async getDoctorProfileWithAvailability(doctorId: number) {
+    const doctor = await this.doctorRepository.findOne({ where: { doctorId } });
+    if (!doctor) return null;
+    const availability = await this.availabilityRepository.find({
+      where: { doctorId, isAvailable: true },
+    });
+    return { ...doctor, availability };
   }
 }
