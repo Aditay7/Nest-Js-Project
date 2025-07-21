@@ -1,19 +1,41 @@
-import { Entity, PrimaryGeneratedColumn, Column } from 'typeorm';
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  ManyToOne,
+  JoinColumn,
+} from 'typeorm';
+import { User } from './user.entity';
+import { Doctor } from './doctor.entity';
+import { Slot } from './slot.entity';
+
+export enum AppointmentStatus {
+  BOOKED = 'booked',
+  CANCELLED = 'cancelled',
+  RESCHEDULED = 'rescheduled',
+}
 
 @Entity({ name: 'appointments' })
 export class Appointment {
   @PrimaryGeneratedColumn({ name: 'appointment_id' })
   appointmentId: number;
 
-  @Column({ name: 'user_id' })
-  userId: number;
+  @ManyToOne(() => Slot, (slot) => slot.appointments)
+  @JoinColumn({ name: 'slot_id' })
+  slot: Slot;
 
-  @Column({ name: 'doctor_id' })
-  doctorId: number;
+  @Column({
+    type: 'enum',
+    enum: AppointmentStatus,
+    default: AppointmentStatus.BOOKED,
+  })
+  status: AppointmentStatus;
 
-  @Column()
-  scheduledOn: string;
+  @ManyToOne(() => User, (user) => user.appointments)
+  @JoinColumn({ name: 'user_id' })
+  user: User;
 
-  @Column()
-  status: string;
+  @ManyToOne(() => Doctor, (doctor) => doctor.appointments)
+  @JoinColumn({ name: 'doctor_id' })
+  doctor: Doctor;
 }

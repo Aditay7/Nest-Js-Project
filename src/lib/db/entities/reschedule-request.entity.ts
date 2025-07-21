@@ -1,12 +1,14 @@
-import { Entity, PrimaryGeneratedColumn, Column } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn } from 'typeorm';
+import { Appointment } from './appointment.entity';
 
 @Entity({ name: 'reschedule_request' })
 export class RescheduleRequest {
   @PrimaryGeneratedColumn({ name: 'reschedule_id' })
   rescheduleId: number;
 
-  @Column({ name: 'appointment_id' })
-  appointmentId: number;
+  @ManyToOne(() => Appointment)
+  @JoinColumn({ name: 'appointment_id' })
+  appointment: Appointment;
 
   @Column({ name: 'old_date', type: 'date' })
   oldDate: string;

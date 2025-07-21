@@ -1,6 +1,6 @@
 // src/lib/db/entities/user.entity.ts
-import { Entity, PrimaryGeneratedColumn, Column } from 'typeorm';
-
+import { Entity, PrimaryGeneratedColumn, Column, OneToMany } from 'typeorm';
+import { Appointment } from './appointment.entity';
 @Entity({ name: 'users' })
 export class User {
   @PrimaryGeneratedColumn({ name: 'user_id' })
@@ -26,4 +26,7 @@ export class User {
 
   @Column()
   address: string;
+
+  @OneToMany(() => Appointment, (appointment) => appointment.user)
+  appointments: Appointment[];
 }

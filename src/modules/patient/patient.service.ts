@@ -11,22 +11,27 @@ export class PatientService {
   ) {}
 
   async addOrUpdateDetails(userId: number, details: Partial<Patient>) {
-    let patient = await this.patientRepository.findOne({ where: { userId } });
+    let patient = await this.patientRepository.findOne({
+      where: { user: { userId } },
+    });
     if (patient) {
-      await this.patientRepository.update(patient.detailId, details);
-      return this.patientRepository.findOne({ where: { userId } });
+      await this.patientRepository.update(userId, details);
+      return this.patientRepository.findOne({ where: { user: { userId } } });
     } else {
-      patient = this.patientRepository.create({ userId, ...details });
+      patient = this.patientRepository.create({
+        userId,
+        user: { userId } as any,
+        ...details,
+      });
       return this.patientRepository.save(patient);
     }
   }
 
-  async updateDetails(detailId: number, details: Partial<Patient>) {
-    await this.patientRepository.update(detailId, details);
-    return this.patientRepository.findOne({ where: { detailId } });
+  async getDetails(userId: number) {
+    return this.patientRepository.findOne({ where: { user: { userId } } });
   }
 
-  async getDetails(userId: number) {
-    return this.patientRepository.findOne({ where: { userId } });
+  async getAllPatients() {
+    return this.patientRepository.find({ relations: ['user'] });
   }
 }

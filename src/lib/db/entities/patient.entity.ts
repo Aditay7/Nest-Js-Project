@@ -1,12 +1,14 @@
-import { Entity, PrimaryGeneratedColumn, Column } from 'typeorm';
+import { Entity, PrimaryColumn, Column, OneToOne, JoinColumn } from 'typeorm';
+import { User } from './user.entity';
 
 @Entity({ name: 'patient_details' })
 export class Patient {
-  @PrimaryGeneratedColumn({ name: 'detail_id' })
-  detailId: number;
-
-  @Column({ name: 'user_id' })
+  @PrimaryColumn({ name: 'user_id' })
   userId: number;
+
+  @OneToOne(() => User)
+  @JoinColumn({ name: 'user_id' })
+  user: User;
 
   @Column({ type: 'text' })
   medical_history: string;
@@ -16,4 +18,4 @@ export class Patient {
 
   @Column({ type: 'text' })
   notes: string;
-} 
+}

@@ -1,12 +1,22 @@
-import { Entity, PrimaryGeneratedColumn, Column } from 'typeorm';
+import {
+  Entity,
+  PrimaryColumn,
+  Column,
+  OneToOne,
+  JoinColumn,
+  OneToMany,
+} from 'typeorm';
+import { User } from './user.entity';
+import { Appointment } from './appointment.entity';
 
 @Entity({ name: 'doctors' })
 export class Doctor {
-  @PrimaryGeneratedColumn({ name: 'doctor_id' })
-  doctorId: number;
+  @PrimaryColumn({ name: 'user_id' })
+  userId: number;
 
-  @Column()
-  name: string;
+  @OneToOne(() => User)
+  @JoinColumn({ name: 'user_id' })
+  user: User;
 
   @Column()
   specialization: string;
@@ -15,17 +25,11 @@ export class Doctor {
   years_of_experience: string;
 
   @Column()
-  email: string;
-
-  @Column()
-  password: string;
-
-  @Column()
-  phone: string;
-
-  @Column()
   profile_pic: string;
 
   @Column()
   bio: string;
+
+  @OneToMany(() => Appointment, (appointment) => appointment.doctor)
+  appointments: Appointment[];
 }

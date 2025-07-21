@@ -27,6 +27,6 @@ export class UserController {
       ...rest,
     });
     await this.userRepository.save(user);
-    return { message: 'User registered successfully' };
+    return { message: 'User registered successfully', user };
   }
 }

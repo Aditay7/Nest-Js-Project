@@ -1,12 +1,14 @@
-import { Entity, PrimaryGeneratedColumn, Column } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn } from 'typeorm';
+import { Doctor } from './doctor.entity';
 
 @Entity({ name: 'availability' })
 export class Availability {
   @PrimaryGeneratedColumn({ name: 'availability_id' })
   availabilityId: number;
 
-  @Column({ name: 'doctor_id' })
-  doctorId: number;
+  @ManyToOne(() => Doctor)
+  @JoinColumn({ name: 'doctor_id' })
+  doctor: Doctor;
 
   @Column({ name: 'is_available' })
   isAvailable: boolean;

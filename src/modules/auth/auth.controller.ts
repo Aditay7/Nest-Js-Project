@@ -27,7 +27,8 @@ export class AuthController {
   @UseGuards(LocalAuthGuard)
   @Post('login')
   async login(@Request() req) {
-    return this.authService.login(req.user);
+    const result = await this.authService.login(req.user);
+    return { message: 'User login successful', ...result };
   }
 
   @UseGuards(JwtAuthGuard)
@@ -53,24 +54,24 @@ export class AuthController {
         await this.userService.deleteByEmail(user.email);
       }
       // Create doctor profile
-      let doctor = await this.doctorService.findByEmail(user.email);
+      let doctor = await this.doctorService.findByUserId(user.userId);
       if (!doctor) {
-        doctor = await this.doctorService.createFromGoogle({
-          email: user.email,
-          name: user.name,
+        doctor = await this.doctorService.createDoctor({
+          userId: user.userId,
           ...otherInfo,
         });
       } else {
-        await this.doctorService.updateDoctorProfile(
-          doctor.doctorId,
-          otherInfo,
-        );
+        await this.doctorService.updateDoctorProfile(doctor.userId, otherInfo);
       }
       result = await this.authService.login({ ...doctor, role: 'doctor' });
     } else {
       throw new BadRequestException('Invalid role');
     }
-    return { access_token: result.access_token, user: result.user };
+    return {
+      message: 'Profile completed successfully',
+      access_token: result.access_token,
+      user: result.user,
+    };
   }
 
   @Get('google')
