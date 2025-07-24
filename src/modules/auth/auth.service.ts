@@ -16,10 +16,9 @@ export class AuthService {
   async validateUser(email: string, password: string): Promise<any> {
     const user = await this.userRepository.findOne({ where: { email } });
     if (user && (await bcrypt.compare(password, user.password))) {
-      const role = 'user';
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      // Use the actual user.role from the database
       const { password: _password, ...result } = user;
-      return { ...result, role };
+      return result;
     }
     return null;
   }
