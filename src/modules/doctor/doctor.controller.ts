@@ -2,6 +2,7 @@ import {
   Controller,
   Post,
   Patch,
+  Delete,
   Get,
   Param,
   Body,
@@ -56,7 +57,7 @@ export class DoctorController {
    * @param page (optional) page number (default 1)
    * @param limit (optional) page size (default 10)
    */
-  @Get()
+  @Get('search')
   async getAllDoctors(
     @Query('search') search?: string,
     @Query('page') page: string = '1',
@@ -65,5 +66,95 @@ export class DoctorController {
     const pageNum = parseInt(page, 10) || 1;
     const limitNum = parseInt(limit, 10) || 10;
     return this.doctorService.getAllDoctors(search, pageNum, limitNum);
+  }
+
+  // --- Availability Management ---
+  @Post('availability/regular')
+  async setRegular(
+    @Request() req,
+    @Body()
+    body: {
+      availabilities: Array<{
+        dayOfWeek: number;
+        startTime: string;
+        endTime: string;
+      }>;
+    },
+  ) {
+    if (
+      !Array.isArray(body.availabilities) ||
+      body.availabilities.length === 0
+    ) {
+      throw new BadRequestException('availabilities array required');
+    }
+    return this.doctorService.setRegularAvailability(
+      req.user.userId,
+      body.availabilities,
+    );
+  }
+
+  @Post('availability/override')
+  async setOverride(
+    @Request() req,
+    @Body()
+    body: {
+      date: string;
+      startTime?: string;
+      endTime?: string;
+      isAvailable?: boolean;
+    },
+  ) {
+    if (!body.date) throw new BadRequestException('date is required');
+    return this.doctorService.setOverride(req.user.userId, body);
+  }
+
+  @Delete('availability/override')
+  async cancelOverride(@Request() req, @Query('date') date: string) {
+    if (!date) throw new BadRequestException('date is required');
+    return this.doctorService.cancelOverride(req.user.userId, date);
+  }
+
+  @Get('availability')
+  async getAvailability(@Request() req, @Query('date') date: string) {
+    if (!date) throw new BadRequestException('date is required');
+    return this.doctorService.getAvailabilityForDate(req.user.userId, date);
+  }
+
+  // --- Slot Management ---
+  @Post('slots')
+  async createSlot(
+    @Request() req,
+    @Body()
+    body: {
+      date: string;
+      startTime: string;
+      endTime: string;
+      capacity?: number;
+    },
+  ) {
+    return this.doctorService.createSlot(req.user.userId, body);
+  }
+
+  @Patch('slots/:id')
+  async updateSlot(
+    @Request() req,
+    @Param('id') id: string,
+    @Body() body: { startTime?: string; endTime?: string; capacity?: number },
+  ) {
+    return this.doctorService.updateSlot(
+      req.user.userId,
+      parseInt(id, 10),
+      body,
+    );
+  }
+
+  @Delete('slots/:id')
+  async deleteSlot(@Request() req, @Param('id') id: string) {
+    return this.doctorService.deleteSlot(req.user.userId, parseInt(id, 10));
+  }
+
+  @Get('slots')
+  async listSlots(@Request() req, @Query('date') date?: string) {
+    return this.doctorService.listSlots(req.user.userId, date);
   }
 }
