@@ -13,6 +13,10 @@ import {
 } from '@nestjs/common';
 import { DoctorService } from './doctor.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import {
+  DayOfWeek,
+  SessionType,
+} from 'src/lib/db/entities/doctor-availability.entity';
 
 @Controller('doctor')
 @UseGuards(JwtAuthGuard)
@@ -75,9 +79,10 @@ export class DoctorController {
     @Body()
     body: {
       availabilities: Array<{
-        dayOfWeek: number;
+        daysOfWeek: DayOfWeek[];
         startTime: string;
         endTime: string;
+        sessionType?: SessionType;
       }>;
     },
   ) {
@@ -93,6 +98,31 @@ export class DoctorController {
     );
   }
 
+  // Legacy endpoint for backward compatibility
+  @Post('availability/regular/legacy')
+  async setRegularLegacy(
+    @Request() req,
+    @Body()
+    body: {
+      availabilities: Array<{
+        dayOfWeek: number;
+        startTime: string;
+        endTime: string;
+      }>;
+    },
+  ) {
+    if (
+      !Array.isArray(body.availabilities) ||
+      body.availabilities.length === 0
+    ) {
+      throw new BadRequestException('availabilities array required');
+    }
+    return this.doctorService.setRegularAvailabilityLegacy(
+      req.user.userId,
+      body.availabilities,
+    );
+  }
+
   @Post('availability/override')
   async setOverride(
     @Request() req,
@@ -102,16 +132,35 @@ export class DoctorController {
       startTime?: string;
       endTime?: string;
       isAvailable?: boolean;
+      sessionType?: SessionType;
     },
   ) {
     if (!body.date) throw new BadRequestException('date is required');
     return this.doctorService.setOverride(req.user.userId, body);
   }
 
+  @Patch('availability/override/disable')
+  async disableOverride(@Request() req, @Body() body: { date: string }) {
+    if (!body.date) throw new BadRequestException('date is required');
+    return this.doctorService.disableOverride(req.user.userId, body.date);
+  }
+
   @Delete('availability/override')
   async cancelOverride(@Request() req, @Query('date') date: string) {
     if (!date) throw new BadRequestException('date is required');
     return this.doctorService.cancelOverride(req.user.userId, date);
+  }
+
+  @Get('availability/regular')
+  async getRegularAvailabilities(
+    @Request() req,
+    @Query('includeInactive') includeInactive?: string,
+  ) {
+    const includeInactiveBool = includeInactive === 'true';
+    return this.doctorService.getRegularAvailabilities(
+      req.user.userId,
+      includeInactiveBool,
+    );
   }
 
   @Get('availability')
@@ -130,6 +179,7 @@ export class DoctorController {
       startTime: string;
       endTime: string;
       capacity?: number;
+      sessionType?: SessionType;
     },
   ) {
     return this.doctorService.createSlot(req.user.userId, body);
@@ -139,7 +189,13 @@ export class DoctorController {
   async updateSlot(
     @Request() req,
     @Param('id') id: string,
-    @Body() body: { startTime?: string; endTime?: string; capacity?: number },
+    @Body()
+    body: {
+      startTime?: string;
+      endTime?: string;
+      capacity?: number;
+      sessionType?: SessionType;
+    },
   ) {
     return this.doctorService.updateSlot(
       req.user.userId,
@@ -153,8 +209,22 @@ export class DoctorController {
     return this.doctorService.deleteSlot(req.user.userId, parseInt(id, 10));
   }
 
+  @Patch('slots/:id/enable')
+  async enableSlot(@Request() req, @Param('id') id: string) {
+    return this.doctorService.enableSlot(req.user.userId, parseInt(id, 10));
+  }
+
   @Get('slots')
-  async listSlots(@Request() req, @Query('date') date?: string) {
-    return this.doctorService.listSlots(req.user.userId, date);
+  async listSlots(
+    @Request() req,
+    @Query('date') date?: string,
+    @Query('includeInactive') includeInactive?: string,
+  ) {
+    const includeInactiveBool = includeInactive === 'true';
+    return this.doctorService.listSlots(
+      req.user.userId,
+      date,
+      includeInactiveBool,
+    );
   }
 }

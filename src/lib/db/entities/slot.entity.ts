@@ -6,6 +6,7 @@ import {
   JoinColumn,
 } from 'typeorm';
 import { Doctor } from './doctor.entity';
+import { SessionType } from './doctor-availability.entity';
 
 @Entity({ name: 'slots' })
 export class Slot {
@@ -30,6 +31,16 @@ export class Slot {
 
   @Column({ default: 1 })
   capacity: number;
+
+  @Column({
+    type: 'enum',
+    enum: SessionType,
+    nullable: true,
+  })
+  sessionType: SessionType; // 'morning', 'afternoon', 'evening', 'custom'
+
+  @Column({ default: true })
+  isActive: boolean; // For soft delete
 
   @Column({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
   createdAt: Date;

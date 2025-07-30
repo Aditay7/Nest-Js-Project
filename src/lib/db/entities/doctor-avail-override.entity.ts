@@ -6,6 +6,7 @@ import {
   JoinColumn,
 } from 'typeorm';
 import { Doctor } from './doctor.entity';
+import { SessionType } from './doctor-availability.entity';
 
 @Entity({ name: 'doctor_avail_override' })
 export class DoctorAvailOverride {
@@ -31,6 +32,23 @@ export class DoctorAvailOverride {
   @Column({ default: true })
   isAvailable: boolean; // false = not available at all on this date
 
-  @Column({ nullable: true })
-  sessionType: string; // 'morning', 'afternoon', 'evening', 'custom', optional
+  @Column({
+    type: 'enum',
+    enum: SessionType,
+    nullable: true,
+  })
+  sessionType: SessionType; // 'morning', 'afternoon', 'evening', 'custom'
+
+  @Column({ default: true })
+  isActive: boolean; // For soft delete
+
+  @Column({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
+  createdAt: Date;
+
+  @Column({
+    type: 'timestamp',
+    default: () => 'CURRENT_TIMESTAMP',
+    onUpdate: 'CURRENT_TIMESTAMP',
+  })
+  updatedAt: Date;
 }
