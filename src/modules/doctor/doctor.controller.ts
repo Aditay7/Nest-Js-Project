@@ -49,12 +49,6 @@ export class DoctorController {
     return { doctor };
   }
 
-  @Get(':id')
-  async getDoctorById(@Param('id') id: number) {
-    const doctor = await this.doctorService.getDoctorById(id);
-    return { doctor };
-  }
-
   /**
    * Get all doctors with optional search and pagination
    * @param search (optional) search string for specialization, qualifications, or name
@@ -172,6 +166,11 @@ export class DoctorController {
     );
   }
 
+  @Get('debug/availability')
+  async debugAvailability(@Request() req) {
+    return this.doctorService.debugAvailabilityData(req.user.userId);
+  }
+
   @Patch('availability/regular/:id/status')
   async updateAvailabilityStatus(
     @Request() req,
@@ -263,5 +262,12 @@ export class DoctorController {
       date,
       includeInactiveBool,
     );
+  }
+
+  // This route must be LAST because :id is a wildcard that matches anything
+  @Get(':id')
+  async getDoctorById(@Param('id') id: number) {
+    const doctor = await this.doctorService.getDoctorById(id);
+    return { doctor };
   }
 }

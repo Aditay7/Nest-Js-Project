@@ -11,6 +11,7 @@ import {
   DoctorAvailability,
   DayOfWeek,
   SessionType,
+  getDayName,
 } from 'src/lib/db/entities/doctor-availability.entity';
 import { DoctorAvailOverride } from 'src/lib/db/entities/doctor-avail-override.entity';
 import { Slot } from 'src/lib/db/entities/slot.entity';
@@ -211,9 +212,60 @@ export class DoctorService {
     });
 
     // Find regular availability that includes this day of week
-    const regular = regulars.find((r) => r.daysOfWeek.includes(dayOfWeek));
+    console.log(
+      `📅 Checking regular availability for day ${dayOfWeek} (${getDayName(dayOfWeek)})`,
+    );
+    console.log(
+      `📋 Found ${regulars.length} regular availability patterns:`,
+      regulars.map((r) => ({
+        id: r.id,
+        daysOfWeek: r.daysOfWeek,
+        daysOfWeekType: typeof r.daysOfWeek,
+        startTime: r.startTime,
+        endTime: r.endTime,
+        sessionType: r.sessionType,
+      })),
+    );
 
-    if (!regular) return { available: false, date };
+    const regular = regulars.find((r) => {
+      // Handle both string and array formats for daysOfWeek
+      let days: DayOfWeek[] = [];
+
+      if (typeof r.daysOfWeek === 'string') {
+        try {
+          // Parse string representation of array
+          days = JSON.parse(r.daysOfWeek);
+        } catch (e) {
+          console.error('❌ Error parsing daysOfWeek string:', r.daysOfWeek, e);
+          return false;
+        }
+      } else if (Array.isArray(r.daysOfWeek)) {
+        days = r.daysOfWeek;
+      } else {
+        console.error('❌ Invalid daysOfWeek format:', r.daysOfWeek);
+        return false;
+      }
+
+      // Convert all elements to numbers for comparison
+      const numericDays = days.map((day) =>
+        typeof day === 'string' ? parseInt(day, 10) : day,
+      );
+
+      console.log(
+        `🔍 Checking if day ${dayOfWeek} is in days array:`,
+        days,
+        '-> converted to:',
+        numericDays,
+      );
+      return numericDays.includes(dayOfWeek);
+    });
+
+    if (!regular) {
+      console.log(`❌ No regular availability found for day ${dayOfWeek}`);
+      return { available: false, date };
+    }
+
+    console.log(`✅ Found matching regular availability:`, regular);
     return {
       available: true,
       date,
@@ -425,5 +477,38 @@ export class DoctorService {
 
     availability.isActive = isActive;
     return this.regularRepo.save(availability);
+  }
+
+  async debugAvailabilityData(doctorId: number) {
+    const regularAvailabilities = await this.regularRepo.find({
+      where: { doctorId },
+    });
+
+    const overrides = await this.overrideRepo.find({
+      where: { doctorId },
+    });
+
+    return {
+      doctorId,
+      regularAvailabilities: regularAvailabilities.map((r) => ({
+        id: r.id,
+        daysOfWeek: r.daysOfWeek,
+        daysOfWeekType: typeof r.daysOfWeek,
+        daysOfWeekRaw: r.daysOfWeek,
+        startTime: r.startTime,
+        endTime: r.endTime,
+        sessionType: r.sessionType,
+        isActive: r.isActive,
+      })),
+      overrides: overrides.map((o) => ({
+        id: o.id,
+        date: o.date,
+        startTime: o.startTime,
+        endTime: o.endTime,
+        isAvailable: o.isAvailable,
+        sessionType: o.sessionType,
+        isActive: o.isActive,
+      })),
+    };
   }
 }
