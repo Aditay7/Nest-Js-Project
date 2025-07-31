@@ -157,14 +157,24 @@ export class DoctorService {
     return this.overrideRepo.save(entity);
   }
 
-  async disableOverride(doctorId: number, date: string) {
+  async updateOverrideStatus(
+    doctorId: number,
+    date: string,
+    isActive: boolean,
+  ) {
     const entity = await this.overrideRepo.findOne({
-      where: { doctorId, date, isActive: true },
+      where: { doctorId, date },
     });
     if (!entity) {
       throw new NotFoundException('Override not found');
     }
-    entity.isActive = false;
+
+    if (entity.isActive === isActive) {
+      const status = isActive ? 'active' : 'inactive';
+      throw new BadRequestException(`Override is already ${status}`);
+    }
+
+    entity.isActive = isActive;
     return this.overrideRepo.save(entity);
   }
 
@@ -323,44 +333,56 @@ export class DoctorService {
     return saved;
   }
 
-  async deleteSlot(doctorId: number, slotId: number) {
-    const slot = await this.slotRepo.findOne({
-      where: { id: slotId, doctorId, isActive: true },
-    });
-    if (!slot) throw new NotFoundException('Active slot not found');
-    // Soft delete
-    slot.isActive = false;
-    await this.slotRepo.save(slot);
-    this.slotGateway.emitSlotDeleted(doctorId, slotId);
-    return { message: 'Slot disabled' };
-  }
-
-  async enableSlot(doctorId: number, slotId: number) {
+  async updateSlotStatus(doctorId: number, slotId: number, isActive: boolean) {
     const slot = await this.slotRepo.findOne({
       where: { id: slotId, doctorId },
     });
     if (!slot) throw new NotFoundException('Slot not found');
-    if (slot.isActive) throw new BadRequestException('Slot is already active');
 
-    // Check for overlaps with other active slots before enabling
-    const overlaps = await this.slotRepo
-      .createQueryBuilder('slot')
-      .where('slot.doctorId = :doctorId', { doctorId })
-      .andWhere('slot.date = :date', { date: slot.date })
-      .andWhere('slot.id != :slotId', { slotId })
-      .andWhere('slot.isActive = :isActive', { isActive: true })
-      .andWhere('slot.startTime < :endTime', { endTime: slot.endTime })
-      .andWhere('slot.endTime > :startTime', { startTime: slot.startTime })
-      .getOne();
-    if (overlaps)
-      throw new BadRequestException(
-        'Cannot enable slot: overlaps with existing active slot',
-      );
+    if (slot.isActive === isActive) {
+      const status = isActive ? 'active' : 'inactive';
+      throw new BadRequestException(`Slot is already ${status}`);
+    }
 
-    slot.isActive = true;
+    // If enabling, check for overlaps with other active slots
+    if (isActive) {
+      const overlaps = await this.slotRepo
+        .createQueryBuilder('slot')
+        .where('slot.doctorId = :doctorId', { doctorId })
+        .andWhere('slot.date = :date', { date: slot.date })
+        .andWhere('slot.id != :slotId', { slotId })
+        .andWhere('slot.isActive = :isActive', { isActive: true })
+        .andWhere('slot.startTime < :endTime', { endTime: slot.endTime })
+        .andWhere('slot.endTime > :startTime', { startTime: slot.startTime })
+        .getOne();
+      if (overlaps)
+        throw new BadRequestException(
+          'Cannot enable slot: overlaps with existing active slot',
+        );
+    }
+
+    slot.isActive = isActive;
     const saved = await this.slotRepo.save(slot);
-    this.slotGateway.emitSlotCreated(doctorId, saved);
+
+    // Emit appropriate event
+    if (isActive) {
+      this.slotGateway.emitSlotCreated(doctorId, saved);
+    } else {
+      this.slotGateway.emitSlotDeleted(doctorId, slotId);
+    }
+
     return saved;
+  }
+
+  async deleteSlotPermanently(doctorId: number, slotId: number) {
+    const slot = await this.slotRepo.findOne({
+      where: { id: slotId, doctorId },
+    });
+    if (!slot) throw new NotFoundException('Slot not found');
+
+    await this.slotRepo.remove(slot);
+    this.slotGateway.emitSlotDeleted(doctorId, slotId);
+    return { message: 'Slot permanently deleted' };
   }
 
   async listSlots(doctorId: number, date?: string, includeInactive = false) {
@@ -382,5 +404,26 @@ export class DoctorService {
       where,
       order: { createdAt: 'ASC' },
     });
+  }
+
+  async updateAvailabilityStatus(
+    doctorId: number,
+    availabilityId: number,
+    isActive: boolean,
+  ) {
+    const availability = await this.regularRepo.findOne({
+      where: { id: availabilityId, doctorId },
+    });
+    if (!availability) {
+      throw new NotFoundException('Availability not found');
+    }
+
+    if (availability.isActive === isActive) {
+      const status = isActive ? 'active' : 'inactive';
+      throw new BadRequestException(`Availability is already ${status}`);
+    }
+
+    availability.isActive = isActive;
+    return this.regularRepo.save(availability);
   }
 }

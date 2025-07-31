@@ -139,10 +139,19 @@ export class DoctorController {
     return this.doctorService.setOverride(req.user.userId, body);
   }
 
-  @Patch('availability/override/disable')
-  async disableOverride(@Request() req, @Body() body: { date: string }) {
+  @Patch('availability/override/status')
+  async updateOverrideStatus(
+    @Request() req,
+    @Body() body: { date: string; isActive: boolean },
+  ) {
     if (!body.date) throw new BadRequestException('date is required');
-    return this.doctorService.disableOverride(req.user.userId, body.date);
+    if (typeof body.isActive !== 'boolean')
+      throw new BadRequestException('isActive is required and must be boolean');
+    return this.doctorService.updateOverrideStatus(
+      req.user.userId,
+      body.date,
+      body.isActive,
+    );
   }
 
   @Delete('availability/override')
@@ -160,6 +169,21 @@ export class DoctorController {
     return this.doctorService.getRegularAvailabilities(
       req.user.userId,
       includeInactiveBool,
+    );
+  }
+
+  @Patch('availability/regular/:id/status')
+  async updateAvailabilityStatus(
+    @Request() req,
+    @Param('id') id: string,
+    @Body() body: { isActive: boolean },
+  ) {
+    if (typeof body.isActive !== 'boolean')
+      throw new BadRequestException('isActive is required and must be boolean');
+    return this.doctorService.updateAvailabilityStatus(
+      req.user.userId,
+      parseInt(id, 10),
+      body.isActive,
     );
   }
 
@@ -204,14 +228,27 @@ export class DoctorController {
     );
   }
 
-  @Delete('slots/:id')
-  async deleteSlot(@Request() req, @Param('id') id: string) {
-    return this.doctorService.deleteSlot(req.user.userId, parseInt(id, 10));
+  @Patch('slots/:id/status')
+  async updateSlotStatus(
+    @Request() req,
+    @Param('id') id: string,
+    @Body() body: { isActive: boolean },
+  ) {
+    if (typeof body.isActive !== 'boolean')
+      throw new BadRequestException('isActive is required and must be boolean');
+    return this.doctorService.updateSlotStatus(
+      req.user.userId,
+      parseInt(id, 10),
+      body.isActive,
+    );
   }
 
-  @Patch('slots/:id/enable')
-  async enableSlot(@Request() req, @Param('id') id: string) {
-    return this.doctorService.enableSlot(req.user.userId, parseInt(id, 10));
+  @Delete('slots/:id')
+  async deleteSlotPermanently(@Request() req, @Param('id') id: string) {
+    return this.doctorService.deleteSlotPermanently(
+      req.user.userId,
+      parseInt(id, 10),
+    );
   }
 
   @Get('slots')
