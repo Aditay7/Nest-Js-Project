@@ -1,0 +1,23 @@
+RENDER ENVIRONMENT VARIABLES - QUICK SETUP
+===========================================
+
+Copy these to Render Dashboard → Your Service → Environment:
+
+1. NODE_ENV = production
+
+2. PORT = 10000
+
+3. DATABASE_URL = [Get from your Render PostgreSQL service - Internal Database URL]
+
+4. JWT_SECRET = e53783304a7e182deeada7ec3cb6b4127c74cca702ee399e6f4d8749e1a9f9aa98f03c8de7f79c2e680237ec72d053aa77378cc09e4a3509d78a7149a04a27bc
+
+5. JWT_EXPIRES_IN = 24h
+
+6. LOG_LEVEL = info
+
+THAT'S IT! Save and your app will redeploy automatically.
+
+DATABASE_URL Example:
+postgresql://schedula_user:password123@dpg-xxxxx-a.oregon-postgres.render.com:5432/schedula
+
+Replace with your actual PostgreSQL connection string from Render.

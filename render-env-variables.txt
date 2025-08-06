@@ -1,0 +1,23 @@
+# Copy these environment variables to your Render Web Service
+# Go to: Render Dashboard → Your Service → Environment
+
+NODE_ENV=production
+PORT=10000
+
+# Database - Replace with your actual Render PostgreSQL connection details
+# Option 1: Use DATABASE_URL (Recommended - Render provides this automatically)
+DATABASE_URL=postgresql://username:password@host:port/database
+
+# Option 2: Individual variables (if you prefer this method)
+DATABASE_HOST=your-render-db-host
+DATABASE_PORT=5432
+DATABASE_USERNAME=your-db-username
+DATABASE_PASSWORD=your-db-password
+DATABASE_NAME=your-database-name
+
+# JWT Configuration - Use the secure secret generated
+JWT_SECRET=e53783304a7e182deeada7ec3cb6b4127c74cca702ee399e6f4d8749e1a9f9aa98f03c8de7f79c2e680237ec72d053aa77378cc09e4a3509d78a7149a04a27bc
+JWT_EXPIRES_IN=24h
+
+# Optional - Logging
+LOG_LEVEL=info
