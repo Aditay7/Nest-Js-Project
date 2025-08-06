@@ -39,6 +39,9 @@ export class DoctorAvailability {
   @Column('simple-array')
   daysOfWeek: DayOfWeek[]; // Array of days like [1, 2] for Monday and Tuesday
 
+  @Column({ type: 'date' })
+  date: string; // 'YYYY-MM-DD'
+
   @Column()
   startTime: string; // 'HH:mm'
 
