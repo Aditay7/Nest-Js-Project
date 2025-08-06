@@ -1,0 +1,54 @@
+services:
+  - type: web
+    name: schedula-backend
+    env: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm run start:prod
+    healthCheckPath: /
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: DATABASE_HOST
+        sync: false
+      - key: DATABASE_PORT
+        value: 5432
+      - key: DATABASE_USERNAME
+        sync: false
+      - key: DATABASE_PASSWORD
+        sync: false
+      - key: DATABASE_NAME
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_EXPIRES_IN
+        value: 24h
+    # Auto-deploy from deploy branch
+    branch: deploy
+    # Build settings
+    buildFilter:
+      paths:
+      - src/**
+      - package.json
+      - package-lock.json
+      - tsconfig.json
+      - nest-cli.json
+    # Health check settings
+    healthCheckPath: /health
+    # Scaling settings
+    numInstances: 1
+    # Disk settings
+    disk:
+      name: schedula-data
+      mountPath: /data
+      sizeGB: 1
+
+databases:
+  - name: schedula-db
+    databaseName: schedula
+    user: schedula_user
+    plan: free
+    # Auto-generated password
+    # Will be available as DATABASE_URL environment variable

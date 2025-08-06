@@ -1,0 +1,138 @@
+name: Sync Repositories and Deploy
+
+on:
+  # Trigger on push to intern/aditay-main in org repo
+  push:
+    branches: [ intern/aditay-main ]
+  
+  # Allow manual trigger
+  workflow_dispatch:
+    inputs:
+      sync_direction:
+        description: 'Sync direction'
+        required: true
+        default: 'org-to-personal'
+        type: choice
+        options:
+        - org-to-personal
+        - personal-to-org
+        - both
+
+  # Trigger on schedule (every hour to check for changes)
+  schedule:
+    - cron: '0 * * * *'  # Every hour
+
+jobs:
+  sync-repositories:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # Fetch all history for all branches
+        token: ${{ secrets.GITHUB_TOKEN }}
+    
+    - name: Configure Git
+      run: |
+        git config --global user.name "GitHub Actions Bot"
+        git config --global user.email "actions@github.com"
+    
+    - name: Add personal repository as remote
+      run: |
+        git remote add personal https://${{ secrets.PERSONAL_REPO_TOKEN }}@github.com/Aditay7/Nest-Js-Project.git
+        git remote -v
+    
+    - name: Fetch all remotes
+      run: |
+        git fetch origin
+        git fetch personal
+    
+    - name: Sync org to personal (automatic)
+      if: github.event_name == 'push' || github.event_name == 'schedule'
+      run: |
+        echo "Syncing from org/intern/aditay-main to personal/main..."
+        
+        # Switch to the intern/aditay-main branch
+        git checkout intern/aditay-main
+        
+        # Pull latest changes from org
+        git pull origin intern/aditay-main
+        
+        # Push to personal repo main branch
+        git push personal intern/aditay-main:main
+        
+        echo "✅ Successfully synced org → personal"
+    
+    - name: Sync based on manual input
+      if: github.event_name == 'workflow_dispatch'
+      run: |
+        case "${{ github.event.inputs.sync_direction }}" in
+          "org-to-personal")
+            echo "Manual sync: org → personal"
+            git checkout intern/aditay-main
+            git pull origin intern/aditay-main
+            git push personal intern/aditay-main:main
+            ;;
+          "personal-to-org")
+            echo "Manual sync: personal → org"
+            git checkout intern/aditay-main
+            git merge personal/main --no-edit
+            git push origin intern/aditay-main
+            ;;
+          "both")
+            echo "Manual sync: bidirectional"
+            git checkout intern/aditay-main
+            git pull origin intern/aditay-main
+            git merge personal/main --no-edit
+            git push origin intern/aditay-main
+            git push personal intern/aditay-main:main
+            ;;
+        esac
+    
+    - name: Create deployment branch
+      run: |
+        echo "Creating/updating deployment branch..."
+        
+        # Ensure we're on the latest intern/aditay-main
+        git checkout intern/aditay-main
+        git pull origin intern/aditay-main
+        
+        # Create or update deploy branch
+        if git show-ref --verify --quiet refs/heads/deploy; then
+          git checkout deploy
+          git reset --hard intern/aditay-main
+        else
+          git checkout -b deploy intern/aditay-main
+        fi
+        
+        # Push deploy branch to personal repo for Render deployment
+        git push personal deploy --force
+        
+        echo "✅ Deployment branch updated"
+    
+    - name: Notify on success
+      if: success()
+      run: |
+        echo "🎉 Repository sync and deployment setup completed successfully!"
+        echo "📋 Summary:"
+        echo "  - Synced org/intern/aditay-main → personal/main"
+        echo "  - Updated deployment branch for Render"
+        echo "  - Render will auto-deploy from 'deploy' branch"
+
+  # Optional: Add a job to trigger Render deployment
+  trigger-render-deploy:
+    needs: sync-repositories
+    runs-on: ubuntu-latest
+    if: success()
+    
+    steps:
+    - name: Trigger Render Deployment
+      run: |
+        if [ -n "${{ secrets.RENDER_DEPLOY_HOOK }}" ]; then
+          echo "Triggering Render deployment..."
+          curl -X POST "${{ secrets.RENDER_DEPLOY_HOOK }}"
+          echo "✅ Render deployment triggered"
+        else
+          echo "ℹ️ No Render deploy hook configured"
+        fi
