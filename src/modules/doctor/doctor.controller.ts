@@ -192,6 +192,42 @@ export class DoctorController {
     return this.doctorService.getAvailabilityForDate(req.user.userId, date);
   }
 
+  @Get('availability/upcoming')
+  async getUpcomingAvailableDates(
+    @Request() req,
+    @Query('days') days: string = '30',
+  ) {
+    const maxDays = parseInt(days, 10) || 30;
+    if (maxDays > 90) {
+      throw new BadRequestException('Maximum 90 days allowed');
+    }
+
+    return this.doctorService.getUpcomingAvailableDates(
+      req.user.userId,
+      maxDays,
+    );
+  }
+
+  /**
+   * PUBLIC ENDPOINT: Get upcoming available dates for a specific doctor
+   * This is what patients/frontend will use for booking
+   */
+  @Get(':doctorId/availability/upcoming')
+  async getDoctorUpcomingAvailableDates(
+    @Param('doctorId') doctorId: string,
+    @Query('days') days: string = '30',
+  ) {
+    const maxDays = parseInt(days, 10) || 30;
+    if (maxDays > 90) {
+      throw new BadRequestException('Maximum 90 days allowed');
+    }
+
+    return this.doctorService.getUpcomingAvailableDates(
+      parseInt(doctorId, 10),
+      maxDays,
+    );
+  }
+
   // --- Slot Management ---
   @Post('slots')
   async createSlot(

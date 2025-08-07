@@ -276,6 +276,159 @@ export class DoctorService {
     };
   }
 
+  // NEW METHOD: Get upcoming available dates with slots pre-computed
+  async getUpcomingAvailableDates(doctorId: number, maxDays: number = 30) {
+    const availableDates: any[] = [];
+    const today = new Date();
+
+    // Get doctor's regular availability patterns
+    const regularAvailabilities = await this.regularRepo.find({
+      where: { doctorId, isActive: true },
+      order: { id: 'ASC' },
+    });
+
+    // Get any overrides for the date range
+    const endDate = new Date(today);
+    endDate.setDate(today.getDate() + maxDays);
+
+    const overrides = await this.overrideRepo.find({
+      where: {
+        doctorId,
+        date: `>= '${today.toISOString().split('T')[0]}'`,
+        isActive: true,
+      },
+    });
+
+    // Create a map of overrides by date for quick lookup
+    const overrideMap = new Map();
+    overrides.forEach((override) => {
+      overrideMap.set(override.date, override);
+    });
+
+    // Check each day in the range
+    for (let i = 0; i < maxDays; i++) {
+      const checkDate = new Date(today);
+      checkDate.setDate(today.getDate() + i);
+      const dateStr = checkDate.toISOString().split('T')[0];
+      const dayOfWeek = checkDate.getDay();
+      const dayName = checkDate.toLocaleDateString('en-US', {
+        weekday: 'long',
+      });
+
+      let isAvailable = false;
+      let availabilityHours = null;
+
+      // Check for override first
+      const override = overrideMap.get(dateStr);
+      if (override) {
+        if (override.isAvailable) {
+          isAvailable = true;
+          availabilityHours = {
+            startTime: override.startTime,
+            endTime: override.endTime,
+            sessionType: override.sessionType,
+          };
+        }
+      } else {
+        // Check regular availability
+        const regular = regularAvailabilities.find((r) => {
+          let days: any[] = [];
+          if (typeof r.daysOfWeek === 'string') {
+            try {
+              days = JSON.parse(r.daysOfWeek);
+            } catch (e) {
+              return false;
+            }
+          } else if (Array.isArray(r.daysOfWeek)) {
+            days = r.daysOfWeek;
+          }
+          const numericDays = days.map((day) =>
+            typeof day === 'string' ? parseInt(day, 10) : day,
+          );
+          return numericDays.includes(dayOfWeek);
+        });
+
+        if (regular) {
+          isAvailable = true;
+          availabilityHours = {
+            startTime: regular.startTime,
+            endTime: regular.endTime,
+            sessionType: regular.sessionType,
+          };
+        }
+      }
+
+      if (isAvailable && availabilityHours) {
+        // Get existing slots for this date
+        const slots = await this.slotRepo.find({
+          where: { doctorId, date: dateStr, isActive: true },
+          order: { startTime: 'ASC' },
+        });
+
+        // Calculate available capacity for each slot
+        const slotsWithCapacity = await Promise.all(
+          slots.map(async (slot) => {
+            const appointmentCount = await this.appointmentRepo.count({
+              where: {
+                slotId: slot.id,
+                appointmentDate: dateStr,
+                status: In([
+                  AppointmentStatus.SCHEDULED,
+                  AppointmentStatus.CONFIRMED,
+                  AppointmentStatus.IN_PROGRESS,
+                ]),
+                isActive: true,
+              },
+            });
+
+            const availableCapacity = slot.capacity - appointmentCount;
+
+            return {
+              id: slot.id,
+              startTime: slot.startTime,
+              endTime: slot.endTime,
+              capacity: slot.capacity,
+              availableCapacity,
+              appointmentCount,
+              sessionType: slot.sessionType,
+            };
+          }),
+        );
+
+        // Only include dates that have available slots
+        const availableSlots = slotsWithCapacity.filter(
+          (slot) => slot.availableCapacity > 0,
+        );
+
+        if (availableSlots.length > 0) {
+          availableDates.push({
+            date: dateStr,
+            dayName,
+            dayOfWeek,
+            availabilityHours,
+            slots: availableSlots,
+            totalAvailableSlots: availableSlots.length,
+            totalAvailableCapacity: availableSlots.reduce(
+              (sum, slot) => sum + slot.availableCapacity,
+              0,
+            ),
+          });
+        }
+      }
+    }
+
+    return {
+      doctorId,
+      searchRange: {
+        startDate: today.toISOString().split('T')[0],
+        endDate: endDate.toISOString().split('T')[0],
+        daysSearched: maxDays,
+      },
+      availableDates,
+      totalAvailableDates: availableDates.length,
+    };
+  }
+
   // --- Slot Management ---
   async createSlot(
     doctorId: number,
