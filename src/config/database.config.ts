@@ -17,7 +17,8 @@ export const typeOrmConfig: DataSourceOptions = {
   database: process.env.DATABASE_NAME || process.env.DB_NAME,
   entities: [path.join(__dirname, '/../lib/db/entities/*.entity.{js,ts}')],
   migrations: [path.join(__dirname, '/../lib/db/migrations/*.ts')],
-  synchronize: process.env.NODE_ENV !== 'production', // false in production
+  synchronize: process.env.NODE_ENV !== 'production', // false in production, true in development
+  migrationsRun: process.env.NODE_ENV === 'production', // Run migrations automatically in production
   ssl:
     process.env.NODE_ENV === 'production'
       ? { rejectUnauthorized: false }

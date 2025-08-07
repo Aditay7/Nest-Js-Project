@@ -2,6 +2,7 @@ import {
   Controller,
   Post,
   Patch,
+  Delete,
   Get,
   Param,
   Body,
@@ -12,6 +13,10 @@ import {
 } from '@nestjs/common';
 import { DoctorService } from './doctor.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import {
+  DayOfWeek,
+  SessionType,
+} from 'src/lib/db/entities/doctor-availability.entity';
 
 @Controller('doctor')
 @UseGuards(JwtAuthGuard)
@@ -44,19 +49,13 @@ export class DoctorController {
     return { doctor };
   }
 
-  @Get(':id')
-  async getDoctorById(@Param('id') id: number) {
-    const doctor = await this.doctorService.getDoctorById(id);
-    return { doctor };
-  }
-
   /**
    * Get all doctors with optional search and pagination
    * @param search (optional) search string for specialization, qualifications, or name
    * @param page (optional) page number (default 1)
    * @param limit (optional) page size (default 10)
    */
-  @Get()
+  @Get('search')
   async getAllDoctors(
     @Query('search') search?: string,
     @Query('page') page: string = '1',
@@ -65,5 +64,258 @@ export class DoctorController {
     const pageNum = parseInt(page, 10) || 1;
     const limitNum = parseInt(limit, 10) || 10;
     return this.doctorService.getAllDoctors(search, pageNum, limitNum);
+  }
+
+  // --- Availability Management ---
+  @Post('availability/regular')
+  async setRegular(
+    @Request() req,
+    @Body()
+    body: {
+      availabilities: Array<{
+        daysOfWeek: DayOfWeek[];
+        startTime: string;
+        endTime: string;
+        sessionType?: SessionType;
+      }>;
+    },
+  ) {
+    if (
+      !Array.isArray(body.availabilities) ||
+      body.availabilities.length === 0
+    ) {
+      throw new BadRequestException('availabilities array required');
+    }
+    return this.doctorService.setRegularAvailability(
+      req.user.userId,
+      body.availabilities,
+    );
+  }
+
+  // Legacy endpoint for backward compatibility
+  @Post('availability/regular/legacy')
+  async setRegularLegacy(
+    @Request() req,
+    @Body()
+    body: {
+      availabilities: Array<{
+        dayOfWeek: number;
+        startTime: string;
+        endTime: string;
+      }>;
+    },
+  ) {
+    if (
+      !Array.isArray(body.availabilities) ||
+      body.availabilities.length === 0
+    ) {
+      throw new BadRequestException('availabilities array required');
+    }
+    return this.doctorService.setRegularAvailabilityLegacy(
+      req.user.userId,
+      body.availabilities,
+    );
+  }
+
+  @Post('availability/override')
+  async setOverride(
+    @Request() req,
+    @Body()
+    body: {
+      date: string;
+      startTime?: string;
+      endTime?: string;
+      isAvailable?: boolean;
+      sessionType?: SessionType;
+    },
+  ) {
+    if (!body.date) throw new BadRequestException('date is required');
+    return this.doctorService.setOverride(req.user.userId, body);
+  }
+
+  @Patch('availability/override/status')
+  async updateOverrideStatus(
+    @Request() req,
+    @Body() body: { date: string; isActive: boolean },
+  ) {
+    if (!body.date) throw new BadRequestException('date is required');
+    if (typeof body.isActive !== 'boolean')
+      throw new BadRequestException('isActive is required and must be boolean');
+    return this.doctorService.updateOverrideStatus(
+      req.user.userId,
+      body.date,
+      body.isActive,
+    );
+  }
+
+  @Delete('availability/override')
+  async cancelOverride(@Request() req, @Query('date') date: string) {
+    if (!date) throw new BadRequestException('date is required');
+    return this.doctorService.cancelOverride(req.user.userId, date);
+  }
+
+  @Get('availability/regular')
+  async getRegularAvailabilities(
+    @Request() req,
+    @Query('includeInactive') includeInactive?: string,
+  ) {
+    const includeInactiveBool = includeInactive === 'true';
+    return this.doctorService.getRegularAvailabilities(
+      req.user.userId,
+      includeInactiveBool,
+    );
+  }
+
+  @Get('debug/availability')
+  async debugAvailability(@Request() req) {
+    return this.doctorService.debugAvailabilityData(req.user.userId);
+  }
+
+  @Patch('availability/regular/:id/status')
+  async updateAvailabilityStatus(
+    @Request() req,
+    @Param('id') id: string,
+    @Body() body: { isActive: boolean },
+  ) {
+    if (typeof body.isActive !== 'boolean')
+      throw new BadRequestException('isActive is required and must be boolean');
+    return this.doctorService.updateAvailabilityStatus(
+      req.user.userId,
+      parseInt(id, 10),
+      body.isActive,
+    );
+  }
+
+  /**
+   * @deprecated Use GET /doctor/availability/upcoming instead
+   * This endpoint requires frontend to calculate dates manually
+   */
+  @Get('availability')
+  async getAvailability(@Request() req, @Query('date') date: string) {
+    if (!date) throw new BadRequestException('date is required');
+    return this.doctorService.getAvailabilityForDate(req.user.userId, date);
+  }
+
+  /**
+   * ✅ PREFERRED: Get pre-computed upcoming available dates
+   * Returns actual dates with day names - no frontend calculation needed
+   */
+  @Get('availability/upcoming')
+  async getUpcomingAvailableDates(
+    @Request() req,
+    @Query('days') days: string = '30',
+  ) {
+    const maxDays = parseInt(days, 10) || 30;
+    if (maxDays > 90) {
+      throw new BadRequestException('Maximum 90 days allowed');
+    }
+
+    return this.doctorService.getUpcomingAvailableDates(
+      req.user.userId,
+      maxDays,
+    );
+  }
+
+  /**
+   * PUBLIC ENDPOINT: Get upcoming available dates for a specific doctor
+   * This is what patients/frontend will use for booking
+   */
+  @Get(':doctorId/availability/upcoming')
+  async getDoctorUpcomingAvailableDates(
+    @Param('doctorId') doctorId: string,
+    @Query('days') days: string = '30',
+  ) {
+    const maxDays = parseInt(days, 10) || 30;
+    if (maxDays > 90) {
+      throw new BadRequestException('Maximum 90 days allowed');
+    }
+
+    return this.doctorService.getUpcomingAvailableDates(
+      parseInt(doctorId, 10),
+      maxDays,
+    );
+  }
+
+  // --- Slot Management ---
+  @Post('slots')
+  async createSlot(
+    @Request() req,
+    @Body()
+    body: {
+      date: string;
+      startTime: string;
+      endTime: string;
+      capacity?: number;
+      sessionType?: SessionType;
+    },
+  ) {
+    return this.doctorService.createSlot(req.user.userId, body);
+  }
+
+  @Patch('slots/:id')
+  async updateSlot(
+    @Request() req,
+    @Param('id') id: string,
+    @Body()
+    body: {
+      startTime?: string;
+      endTime?: string;
+      capacity?: number;
+      sessionType?: SessionType;
+    },
+  ) {
+    return this.doctorService.updateSlot(
+      req.user.userId,
+      parseInt(id, 10),
+      body,
+    );
+  }
+
+  @Patch('slots/:id/status')
+  async updateSlotStatus(
+    @Request() req,
+    @Param('id') id: string,
+    @Body() body: { isActive: boolean },
+  ) {
+    if (typeof body.isActive !== 'boolean')
+      throw new BadRequestException('isActive is required and must be boolean');
+    return this.doctorService.updateSlotStatus(
+      req.user.userId,
+      parseInt(id, 10),
+      body.isActive,
+    );
+  }
+
+  @Delete('slots/:id')
+  async deleteSlotPermanently(@Request() req, @Param('id') id: string) {
+    return this.doctorService.deleteSlotPermanently(
+      req.user.userId,
+      parseInt(id, 10),
+    );
+  }
+
+  /**
+   * @deprecated When used with date parameter, this requires frontend date calculation
+   * Use GET /doctor/:doctorId/availability/upcoming instead for patient booking
+   */
+  @Get('slots')
+  async listSlots(
+    @Request() req,
+    @Query('date') date?: string,
+    @Query('includeInactive') includeInactive?: string,
+  ) {
+    const includeInactiveBool = includeInactive === 'true';
+    return this.doctorService.listSlots(
+      req.user.userId,
+      date,
+      includeInactiveBool,
+    );
+  }
+
+  // This route must be LAST because :id is a wildcard that matches anything
+  @Get(':id')
+  async getDoctorById(@Param('id') id: number) {
+    const doctor = await this.doctorService.getDoctorById(id);
+    return { doctor };
   }
 }
