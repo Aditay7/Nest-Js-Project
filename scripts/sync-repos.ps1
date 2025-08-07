@@ -2,7 +2,7 @@
 # Syncs between org/intern/aditay-main and personal/main
 
 param(
-    [Parameter(Position=0)]
+    [Parameter(Position = 0)]
     [ValidateSet("org-to-personal", "o2p", "personal-to-org", "p2o", "both", "sync", "status", "check", "deploy", "setup-deploy")]
     [string]$Action = "status"
 )
@@ -13,11 +13,11 @@ $PERSONAL_BRANCH = "main"
 
 # Colors for output
 $Colors = @{
-    Red = "Red"
-    Green = "Green"
+    Red    = "Red"
+    Green  = "Green"
     Yellow = "Yellow"
-    Blue = "Blue"
-    White = "White"
+    Blue   = "Blue"
+    White  = "White"
 }
 
 function Write-Status {
@@ -43,7 +43,8 @@ function Write-Error {
 # Check if we're in a git repository
 try {
     git rev-parse --git-dir | Out-Null
-} catch {
+}
+catch {
     Write-Error "Not in a git repository!"
     exit 1
 }
@@ -125,7 +126,8 @@ function Sync-Both {
             Write-Status "Personal commit: $personalCommit"
             Write-Status "Local commit: $localCommit"
         }
-    } catch {
+    }
+    catch {
         Write-Warning "Could not compare commits"
     }
     
@@ -145,7 +147,7 @@ function Sync-Both {
     Write-Success "Bidirectional sync completed"
 }
 
-function Check-Status {
+function Test-Status {
     Write-Status "Checking status of both repositories..."
     
     # Fetch latest
@@ -156,12 +158,14 @@ function Check-Status {
     $localCommit = git rev-parse HEAD
     try {
         $orgCommit = git rev-parse "org/$ORG_BRANCH" 2>$null
-    } catch {
+    }
+    catch {
         $orgCommit = "N/A"
     }
     try {
         $personalCommit = git rev-parse "personal/$PERSONAL_BRANCH" 2>$null
-    } catch {
+    }
+    catch {
         $personalCommit = "N/A"
     }
     
@@ -176,7 +180,8 @@ function Check-Status {
     # Check if repos are in sync
     if ($orgCommit -eq $personalCommit) {
         Write-Success "Organization and personal repositories are in sync!"
-    } else {
+    }
+    else {
         Write-Warning "Repositories are out of sync"
         Write-Host "  - Org ($ORG_BRANCH): $orgCommit" -ForegroundColor $Colors.Yellow
         Write-Host "  - Personal ($PERSONAL_BRANCH): $personalCommit" -ForegroundColor $Colors.Yellow
@@ -187,13 +192,14 @@ function Check-Status {
     if ($currentBranch -eq $ORG_BRANCH) {
         if ($localCommit -eq $orgCommit) {
             Write-Success "Local is in sync with org/$ORG_BRANCH"
-        } else {
+        }
+        else {
             Write-Warning "Local differs from org/$ORG_BRANCH"
         }
     }
 }
 
-function Setup-Deployment {
+function Initialize-Deployment {
     Write-Status "Setting up deployment branch for Render..."
     
     # Fetch latest
@@ -201,12 +207,13 @@ function Setup-Deployment {
     git fetch personal
     
     # Create or update deployment branch
-    $deployBranchExists = git show-ref --verify --quiet refs/heads/deploy
+    git show-ref --verify --quiet refs/heads/deploy
     if ($LASTEXITCODE -eq 0) {
         Write-Status "Deployment branch exists, updating..."
         git checkout deploy
         git reset --hard $ORG_BRANCH
-    } else {
+    }
+    else {
         Write-Status "Creating deployment branch..."
         git checkout -b deploy $ORG_BRANCH
     }
@@ -231,10 +238,10 @@ switch ($Action) {
         Sync-Both
     }
     { $_ -in "status", "check" } {
-        Check-Status
+        Test-Status
     }
     { $_ -in "deploy", "setup-deploy" } {
-        Setup-Deployment
+        Initialize-Deployment
     }
     default {
         Write-Host "Usage: .\sync-repos.ps1 {org-to-personal|personal-to-org|both|status|deploy}" -ForegroundColor $Colors.White
