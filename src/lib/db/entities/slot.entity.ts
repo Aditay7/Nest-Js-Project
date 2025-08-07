@@ -6,6 +6,7 @@ import {
   JoinColumn,
 } from 'typeorm';
 import { Doctor } from './doctor.entity';
+import { SessionType } from './doctor-availability.entity';
 
 @Entity({ name: 'slots' })
 export class Slot {
@@ -19,6 +20,9 @@ export class Slot {
   @JoinColumn({ name: 'doctor_id', referencedColumnName: 'userId' })
   doctor: Doctor;
 
+  @Column({ type: 'date' })
+  date: string; // 'YYYY-MM-DD'
+
   @Column()
   startTime: string; // 'HH:mm'
 
@@ -27,6 +31,13 @@ export class Slot {
 
   @Column({ default: 1 })
   capacity: number;
+
+  @Column({
+    type: 'enum',
+    enum: SessionType,
+    default: SessionType.CUSTOM,
+  })
+  sessionType: SessionType;
 
   @Column({ default: true })
   isActive: boolean; // For soft delete
