@@ -186,12 +186,20 @@ export class DoctorController {
     );
   }
 
+  /**
+   * @deprecated Use GET /doctor/availability/upcoming instead
+   * This endpoint requires frontend to calculate dates manually
+   */
   @Get('availability')
   async getAvailability(@Request() req, @Query('date') date: string) {
     if (!date) throw new BadRequestException('date is required');
     return this.doctorService.getAvailabilityForDate(req.user.userId, date);
   }
 
+  /**
+   * ✅ PREFERRED: Get pre-computed upcoming available dates
+   * Returns actual dates with day names - no frontend calculation needed
+   */
   @Get('availability/upcoming')
   async getUpcomingAvailableDates(
     @Request() req,
@@ -286,6 +294,10 @@ export class DoctorController {
     );
   }
 
+  /**
+   * @deprecated When used with date parameter, this requires frontend date calculation
+   * Use GET /doctor/:doctorId/availability/upcoming instead for patient booking
+   */
   @Get('slots')
   async listSlots(
     @Request() req,
